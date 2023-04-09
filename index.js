@@ -80,6 +80,13 @@ async function run() {
       res.send({ isAdmin: user?.userType === "admin" });
     });
 
+    app.get("/users/female/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ isFemale: user?.gender === "F" });
+    });
+
     app.get("/users/verified/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -126,6 +133,18 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/unreadsmessages", async (req, res) => {
+      const query = { status: "unanswered" };
+      const result = await messageCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/unverifiedstudents", async (req, res) => {
+      const query = { status: "unverified" };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.get("/mymessages/:email", async (req, res) => {
       const email = req.params.email;
       const query = { email };
@@ -138,6 +157,15 @@ async function run() {
       const courseId = req.params.courseId;
       const query = { courseId };
       const result = await lessonCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/search/:branch/:level/:section", async (req, res) => {
+      const branch = req.params.branch;
+      const level = req.params.level;
+      const section = req.params.section;
+      const query = { branch, level, section };
+      const result = await usersCollection.find(query).toArray();
       res.send(result);
     });
 
