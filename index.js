@@ -1,10 +1,50 @@
 const express = require("express");
+// const multer = require("multer");
+// const path = require("path");
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
+
+// const UPLOADS_FOLDER = "./uploads";
+
+// const storage = multer.diskStorage({
+//   destination: (rew, file, cb) => {
+//     cb(null, UPLOADS_FOLDER);
+//   },
+//   filename: (req, file, cb) => {
+//     const fileExt = path.extname(file.originalname);
+//     const fileName =
+//       file.originalname
+//         .replace(fileExt, "")
+//         .toLowerCase()
+//         .split(" ")
+//         .join("-") +
+//       "-" +
+//       Date.now();
+//     cb(null, (url = fileName + fileExt));
+//   },
+// });
+
+// var upload = multer({
+//   storage: storage,
+//   limits: {
+//     fieldSize: 1000000, //1mb
+//   },
+//   fileFilter: (req, file, cb) => {
+//     if (
+//       file.mimetype === "image/png" ||
+//       file.mimetype === "image/jpg" ||
+//       file.mimetype === "image/jpeg"
+//     ) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error("Only .jpg, .png or .jpeg formate allowed!"));
+//     }
+//   },
+// });
 
 app.use(cors());
 app.use(express.json());
@@ -48,6 +88,13 @@ async function run() {
     const messageCollection = client
       .db("frii-programming")
       .collection("messages");
+    const blogCollection = client.db("frii-programming").collection("blogs");
+    const blogLikeCollection = client
+      .db("frii-programming")
+      .collection("blogLike");
+    const liveClassCollection = client
+      .db("frii-programming")
+      .collection("liveClass");
 
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
@@ -66,7 +113,7 @@ async function run() {
       const user = await usersCollection.findOne(quary);
       if (user) {
         const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
-          expiresIn: "1h",
+          expiresIn: "365d",
         });
         return res.send({ accessToken: token });
       }
@@ -169,6 +216,45 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/blogs", async (req, res) => {
+      const query = {};
+      const result = await blogCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/blog/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await blogCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/bloglikecount/:blog", async (req, res) => {
+      const blog = req.params.blog;
+      const query = { blog };
+      const users = await blogLikeCollection.find(query).toArray();
+      res.send(users);
+    });
+
+    // app.get("/myusers/:email", async (req, res) => {
+    //   const email = req.params.email;
+    //   const query = { email };
+    //   const users = await usersCollection.findOne(query);
+    //   res.send(users);
+    // });
+
+    app.get("/liveclasslist", async (req, res) => {
+      const query = {};
+      const result = await liveClassCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post("/addliveclass", async (req, res) => {
+      const LiveClass = req.body;
+      const result = await liveClassCollection.insertOne(LiveClass);
+      res.send(result);
+    });
+
     app.post("/users", async (req, res) => {
       const user = req.body;
       const result = await usersCollection.insertOne(user);
@@ -187,6 +273,12 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/postblog", async (req, res) => {
+      const blog = req.body;
+      const result = await blogCollection.insertOne(blog);
+      res.send(result);
+    });
+
     app.put("/enrolments/:email", async (req, res) => {
       const email = req.params.email;
       const courseId = req.body.courseId;
@@ -199,6 +291,39 @@ async function run() {
         $set: {},
       };
       const result = await enrolmentCollection.updateOne(
+        filter,
+        updateData,
+        options
+      );
+      res.send(result);
+    });
+
+    // app.put("/dashboard/:email", upload.single("file"), async (req, res) => {
+    //   const email = req.params.email;
+    //   const filter = { email };
+    //   const options = { upsert: true };
+    //   const updateData = {
+    //     $set: {
+    //       photoURL: `https://www.bihongo.net:2083/cpsess5427529532/frontend/jupiter/filemanager/showfile.html?file=${url}&fileop=&dir=%2Fhome%2Fbihongo%2Fserver.cpc.frii.edu.bd%2Fuploads`,
+    //     },
+    //   };
+    //   const result = await usersCollection.updateOne(
+    //     filter,
+    //     updateData,
+    //     options
+    //   );
+    //   res.send(result);
+    // });
+
+    app.put("/postlikes/:email", async (req, res) => {
+      const email = req.params.email;
+      const blog = req.body.blog;
+      const filter = { email, blog };
+      const options = { upsert: true };
+      const updateData = {
+        $set: {},
+      };
+      const result = await blogLikeCollection.updateOne(
         filter,
         updateData,
         options
@@ -299,6 +424,18 @@ async function run() {
       const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
+
+    app.delete(
+      "/deleteliveclass/:id",
+      verifyJWT,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await liveClassCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
   } finally {
   }
 }
